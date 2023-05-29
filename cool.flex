@@ -49,13 +49,50 @@ extern YYSTYPE cool_yylval;
  *  Add Your own definitions here
  */
 
+
+
 %}
 
 /*
  * Define names for regular expressions here.
  */
 
-DARROW          =>
+DIGIT               [0-9]
+LOWERCASE_LETTER    [a-z]
+UPPERCASE_LETTER    [A-Z]
+LETTER              ({LOWERCASE_LETTER}|{UPPERCASE_LETTER})
+BLANK               (" "|\f|\r|\t|\v)
+
+CLASS       (?i:class)
+ELSE        (?i:else)
+FI          (?i:fi)
+IF          (?i:if)
+IN          (?i:in)
+INHERITS    (?i:inherits)
+LET         (?i:let)
+LOOP        (?i:loop)
+POOL        (?i:pool)
+THEN        (?i:then)
+WHILE       (?i:while)
+CASE        (?i:case)
+ESAC        (?i:esac)
+OF          (?i:of)
+NEW         (?i:new)
+ISVOID      (?i:isvoid)
+NOT         (?i:not)
+
+DARROW        "=>"
+LE            "<="
+ASSIGN        "<-"
+
+
+INT_CONST   {DIGIT}+
+BOOL_CONST_TRUE  (t)(?i:rue)
+BOOL_CONST_FALSE (f)(?i:alse)
+TYPEID      ("SELF_TYPE"|{UPPERCASE_LETTER}({LETTER}|{DIGIT}|"_")*)
+OBJECTID    ("self"|{LETTER}({LETTER}|{DIGIT}|"_")*)
+
+
 
 %%
 
@@ -63,18 +100,52 @@ DARROW          =>
   *  Nested comments
   */
 
-
- /*
-  *  The multiple-character operators.
+  /*
+  *  The single and double character operators.
   */
-{DARROW}		{ return (DARROW); }
+{DARROW} return(DARROW);
+{LE} return(LE);
+{ASSIGN} return(ASSIGN);
 
  /*
   * Keywords are case-insensitive except for the values true and false,
   * which must begin with a lower-case letter.
   */
 
+{CLASS}     return (CLASS);
+{ELSE}      return (ELSE);
+{FI}        return (FI);
+{IF}        return (IF);
+{IN}        return (IN);
+{INHERITS}  return (INHERITS);
+{LET}       return (LET);
+{LOOP}      return (LOOP);
+{POOL}      return (POOL);
+{THEN}      return (THEN);
+{WHILE}     return (WHILE);
+{CASE}      return (CASE);
+{ESAC}      return (ESAC);
+{OF}        return (OF);
+{NEW}       return (NEW);
+{ISVOID}    return (ISVOID);
+{NOT}       return (NOT);
 
+"+"         return '+';
+"-"         return '-';
+"*"         return '*';
+"/"         return '/';
+"~"         return '~';
+"<"         return '<';
+"="         return '=';
+"("         return '(';
+")"         return ')';
+"{"         return '{';
+"}"         return '}';
+";"         return ';';
+":"         return ':';
+"."         return '.';
+","         return ',';
+"@"         return '@';
  /*
   *  String constants (C syntax)
   *  Escape sequence \c is accepted for all characters c. Except for 
@@ -82,5 +153,34 @@ DARROW          =>
   *
   */
 
+\n {
+ curr_lineno++; 
+}
+
+{BLANK}+ {}
+
+{BOOL_CONST_TRUE} {
+  cool_yylval.boolean = true;
+  return (BOOL_CONST);
+}
+
+{BOOL_CONST_FALSE} {
+  cool_yylval.boolean = false;
+  return (BOOL_CONST);
+}
+
+{INT_CONST} {
+  cool_yylval.symbol = inttable.add_string(yytext);
+  return (INT_CONST);
+}
+
+{TYPEID} {
+  cool_yylval.symbol = inttable.add_string(yytext);
+  return (TYPEID);
+}
+{OBJECTID} {
+  cool_yylval.symbol = inttable.add_string(yytext);
+  return (OBJECTID);
+}
 
 %%
