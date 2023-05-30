@@ -51,13 +51,16 @@ extern YYSTYPE cool_yylval;
 
 int should_terminate = 0;
 int string_const_length = 0;
-
+int comment_depth = 0;
+int in_nested_comment = 0;
 
 %}
 
 
 %x STRING_CONSTANT
 %x ESCAPE
+%x NESTED_COMMENT
+%x SIMPLE_COMMENT
 
 /*
  * Define names for regular expressions here.
@@ -98,13 +101,54 @@ BOOL_CONST_FALSE (f)(?i:alse)
 TYPEID      ("SELF_TYPE"|{UPPERCASE_LETTER}({LETTER}|{DIGIT}|"_")*)
 OBJECTID    ("self"|{LETTER}({LETTER}|{DIGIT}|"_")*)
 
+NESTED_COMMENT_START   "\(\*"
+NESTED_COMMENT_END     "\*\)"
+SIMPLE_COMMENT_START   "--"
+SIMPLE_COMMENT_END     "--"
 
 STR_CONST_DELIMITER              \"
 %%
 
  /*
-  *  Nested comments
+  *  Simple and nested comments
   */
+
+{SIMPLE_COMMENT_START} { BEGIN(SIMPLE_COMMENT); }
+<SIMPLE_COMMENT>\n        { curr_lineno++; BEGIN(INITIAL); }
+<SIMPLE_COMMENT>.         {  }
+
+{NESTED_COMMENT_START} { comment_depth++; BEGIN(NESTED_COMMENT); in_nested_comment = 1; }
+<NESTED_COMMENT>{NESTED_COMMENT_START} { comment_depth++; }
+<NESTED_COMMENT>{NESTED_COMMENT_END} {
+  comment_depth--;
+
+  if (comment_depth < 0) {
+    cool_yylval.error_msg = "Unmatched *)";
+	  return (ERROR);
+  }
+
+  if (comment_depth == 0) {
+    in_nested_comment = 0;
+    BEGIN(INITIAL);
+  }
+}
+<NESTED_COMMENT><<EOF>> {
+    if (should_terminate)
+      yyterminate();
+      
+    cool_yylval.error_msg = "EOF in comment";
+    should_terminate = 1;
+    return (ERROR);
+}
+<NESTED_COMMENT>\n        { curr_lineno++; }
+<NESTED_COMMENT>.         {  }
+
+{NESTED_COMMENT_END} {
+  if (!in_nested_comment) {
+    cool_yylval.error_msg = "Unmatched *)";
+	  return (ERROR);
+  }
+}
 
   /*
   *  The single and double character operators.
@@ -152,6 +196,7 @@ STR_CONST_DELIMITER              \"
 "."         return '.';
 ","         return ',';
 "@"         return '@';
+
  /*
   *  String constants (C syntax)
   *  Escape sequence \c is accepted for all characters c. Except for 
