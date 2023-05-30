@@ -49,8 +49,8 @@ extern YYSTYPE cool_yylval;
  *  Add Your own definitions here
  */
 
-int should_terminate = 0;
-int string_const_length = 0;
+int error_found = 0;
+int str_length = 0;
 int comment_depth = 0;
 int in_nested_comment = 0;
 
@@ -95,16 +95,15 @@ LE            "<="
 ASSIGN        "<-"
 
 
-INT_CONST   {DIGIT}+
+INT_CONST        {DIGIT}+
 BOOL_CONST_TRUE  (t)(?i:rue)
 BOOL_CONST_FALSE (f)(?i:alse)
-TYPEID      ("SELF_TYPE"|{UPPERCASE_LETTER}({LETTER}|{DIGIT}|"_")*)
-OBJECTID    ("self"|{LETTER}({LETTER}|{DIGIT}|"_")*)
+TYPEID           ("SELF_TYPE"|{UPPERCASE_LETTER}({LETTER}|{DIGIT}|"_")*)
+OBJECTID         ("self"|{LETTER}({LETTER}|{DIGIT}|"_")*)
 
-NESTED_COMMENT_START   "\(\*"
-NESTED_COMMENT_END     "\*\)"
+NESTED_COMMENT_START   "(*"
+NESTED_COMMENT_END     "*)"
 SIMPLE_COMMENT_START   "--"
-SIMPLE_COMMENT_END     "--"
 
 STR_CONST_DELIMITER              \"
 %%
@@ -133,11 +132,11 @@ STR_CONST_DELIMITER              \"
   }
 }
 <NESTED_COMMENT><<EOF>> {
-    if (should_terminate)
+    if (error_found)
       yyterminate();
       
     cool_yylval.error_msg = "EOF in comment";
-    should_terminate = 1;
+    error_found = 1;
     return (ERROR);
 }
 <NESTED_COMMENT>\n        { curr_lineno++; }
@@ -154,7 +153,7 @@ STR_CONST_DELIMITER              \"
   *  The single and double character operators.
   */
 {DARROW} return(DARROW);
-{LE} return(LE);
+{LE}     return(LE);
 {ASSIGN} return(ASSIGN);
 
  /*
@@ -197,114 +196,6 @@ STR_CONST_DELIMITER              \"
 ","         return ',';
 "@"         return '@';
 
- /*
-  *  String constants (C syntax)
-  *  Escape sequence \c is accepted for all characters c. Except for 
-  *  \n \t \b \f, the result is c.
-  *
-  */
-
-
-{STR_CONST_DELIMITER}  { BEGIN(STRING_CONSTANT); }
-<STRING_CONSTANT>{STR_CONST_DELIMITER} {
-  string_buf_ptr = (char*) &string_buf;
-  cool_yylval.symbol = idtable.add_string(string_buf_ptr, string_const_length);
-  string_const_length = 0;
-  BEGIN(INITIAL);
-  return (STR_CONST);
-}
-<STRING_CONSTANT><<EOF>> {
-    if (should_terminate)
-      yyterminate();
-      
-    cool_yylval.error_msg = "EOF in string constant";
-    should_terminate = 1;
-    return (ERROR);
-}
-<STRING_CONSTANT>\0 {
-  	cool_yylval.error_msg = "String contains null character";
-    string_const_length = 0;
-		BEGIN(ESCAPE);
-		return ERROR;
-}
-<STRING_CONSTANT>\n {
-  	cool_yylval.error_msg = "Unterminated string constant";
-    string_const_length = 0;
-    curr_lineno++;
-	  BEGIN(INITIAL);
-		return ERROR;
-}
-<STRING_CONSTANT>"\\n" {
-    if (string_const_length + 1< MAX_STR_CONST) {
-      string_buf[string_const_length++] = '\n'; 
-    } 
-    else {
-      cool_yylval.error_msg = "String constant too long";
-      string_const_length = 0;
-      BEGIN(ESCAPE);
-      return (ERROR); 
-    }
-}
-<STRING_CONSTANT>"\\t" {
-    if (string_const_length + 1 < MAX_STR_CONST) {
-      string_buf[string_const_length++] = '\t'; 
-    } 
-    else {
-      cool_yylval.error_msg = "String constant too long";
-      string_const_length = 0;
-      BEGIN(ESCAPE);
-      return (ERROR); 
-    }
-}
-<STRING_CONSTANT>"\\b" {
-    if (string_const_length + 1 < MAX_STR_CONST) {
-      string_buf[string_const_length++] = '\b'; 
-    } 
-    else {
-      cool_yylval.error_msg = "String constant too long";
-      string_const_length = 0;
-      BEGIN(ESCAPE);
-      return (ERROR); 
-    }
-}
-<STRING_CONSTANT>"\\f" {
-    if (string_const_length + 1 < MAX_STR_CONST) {
-      string_buf[string_const_length++] = '\f'; 
-    } 
-    else {
-      cool_yylval.error_msg = "String constant too long";
-      string_const_length = 0;
-      BEGIN(ESCAPE);
-      return (ERROR); 
-    }
-}
-<STRING_CONSTANT>"\\"[^\0] {
-    if (string_const_length + 1 < MAX_STR_CONST) {
-      string_buf[string_const_length++] = yytext[1]; 
-    } 
-    else {
-      cool_yylval.error_msg = "String constant too long";
-      string_const_length = 0;
-      BEGIN(ESCAPE);
-      return (ERROR); 
-    }
-}
-<STRING_CONSTANT>. {
-    if (string_const_length + 1 < MAX_STR_CONST ) {
-      string_buf[string_const_length++] = yytext[0];
-    }
-    else {
-      cool_yylval.error_msg = "String constant too long";
-        string_const_length = 0;
-
-      BEGIN(ESCAPE);
-      return (ERROR); 
-    }
-}
-
-<ESCAPE>[\n|"]	 { BEGIN(INITIAL);  }
-<ESCAPE>[^\n|"]	 { }
-
 \n {
  curr_lineno++; 
 }
@@ -334,5 +225,113 @@ STR_CONST_DELIMITER              \"
   cool_yylval.symbol = inttable.add_string(yytext);
   return (OBJECTID);
 }
+
+ /*
+  *  String constants (C syntax)
+  *  Escape sequence \c is accepted for all characters c. Except for 
+  *  \n \t \b \f, the result is c.
+  *
+  */
+
+
+{STR_CONST_DELIMITER}  { BEGIN(STRING_CONSTANT); }
+<STRING_CONSTANT>{STR_CONST_DELIMITER} {
+  string_buf_ptr = (char*) &string_buf;
+  cool_yylval.symbol = idtable.add_string(string_buf_ptr, str_length);
+  str_length = 0;
+  BEGIN(INITIAL);
+  return (STR_CONST);
+}
+<STRING_CONSTANT><<EOF>> {
+    if (error_found)
+      yyterminate();
+      
+    cool_yylval.error_msg = "EOF in string constant";
+    error_found = 1;
+    return (ERROR);
+}
+<STRING_CONSTANT>\0 {
+  	cool_yylval.error_msg = "String contains null character";
+    str_length = 0;
+		BEGIN(ESCAPE);
+		return ERROR;
+}
+<STRING_CONSTANT>\n {
+  	cool_yylval.error_msg = "Unterminated string constant";
+    str_length = 0;
+    curr_lineno++;
+	  BEGIN(INITIAL);
+		return ERROR;
+}
+<STRING_CONSTANT>"\\n" {
+    if (str_length + 1< MAX_STR_CONST) {
+      string_buf[str_length++] = '\n'; 
+    } 
+    else {
+      cool_yylval.error_msg = "String literal too long";
+      str_length = 0;
+      BEGIN(ESCAPE);
+      return (ERROR); 
+    }
+}
+<STRING_CONSTANT>"\\t" {
+    if (str_length + 1 < MAX_STR_CONST) {
+      string_buf[str_length++] = '\t'; 
+    } 
+    else {
+      cool_yylval.error_msg = "String literal too long";
+      str_length = 0;
+      BEGIN(ESCAPE);
+      return (ERROR); 
+    }
+}
+<STRING_CONSTANT>"\\b" {
+    if (str_length + 1 < MAX_STR_CONST) {
+      string_buf[str_length++] = '\b'; 
+    } 
+    else {
+      cool_yylval.error_msg = "String literal too long";
+      str_length = 0;
+      BEGIN(ESCAPE);
+      return (ERROR); 
+    }
+}
+<STRING_CONSTANT>"\\f" {
+    if (str_length + 1 < MAX_STR_CONST) {
+      string_buf[str_length++] = '\f'; 
+    } 
+    else {
+      cool_yylval.error_msg = "String literal too long";
+      str_length = 0;
+      BEGIN(ESCAPE);
+      return (ERROR); 
+    }
+}
+<STRING_CONSTANT>"\\"[^\0] {
+    if (str_length + 1 < MAX_STR_CONST) {
+      string_buf[str_length++] = yytext[1]; 
+    } 
+    else {
+      cool_yylval.error_msg = "String literal too long";
+      str_length = 0;
+      BEGIN(ESCAPE);
+      return (ERROR); 
+    }
+}
+<STRING_CONSTANT>. {
+    if (str_length + 1 < MAX_STR_CONST ) {
+      string_buf[str_length++] = yytext[0];
+    }
+    else {
+      cool_yylval.error_msg = "String constant too long";
+        str_length = 0;
+
+      BEGIN(ESCAPE);
+      return (ERROR); 
+    }
+}
+
+<ESCAPE>[\n|"]	 { BEGIN(INITIAL);  }
+<ESCAPE>[^\n|"]	 { }
 
 %%

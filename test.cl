@@ -1,6 +1,6 @@
 (* models one-dimensional cellular automaton on a circle of finite radius
-   arrays are faked as Strings,
-   X's respresent live cells, dots represent dead cells,
+   arrays are faked as Strings, (*
+   X's respresent live cells, dots represent dead cells, *)
    no error checking is done *)
 class CellularAutomaton inherits IO {
     population_map : String;
@@ -11,7 +11,7 @@ class CellularAutomaton inherits IO {
             self;
         }
     };
-    
+   
     print() : SELF_TYPE {
         {
             out_string(population_map.concat("\n"));
@@ -75,11 +75,102 @@ class CellularAutomaton inherits IO {
     };
 };
 
+Class Futebol inherits Esporte {
+};
+
+class Esporte {
+    play(): Int { };
+};
+
+class Volei {
+    play(): Int { };
+};
+
+class Judo {
+    play(): Int { };
+};
+
+class Main inherits IO {
+    pal(s : String) : Bool {
+	if s.length() = 0
+	then true
+	else if s.length() = 1
+	then true
+	else if s.substr(0, 1) = s.substr(s.length() - 1, 1)
+	then pal(s.substr(1, s.length() -2))
+	else false
+	fi fi fi
+    };
+
+    i : Int;
+
+    main() : SELF_TYPE {
+	{
+            i <- ~1;
+	    out_string("enter a string\n");
+	    if pal(in_string())
+	    then out_string("that was a palindrome\n")
+	    else out_string("that was not a palindrome\n")
+	    fi;
+	}
+    };
+};
+
 class Main {
     cells : CellularAutomaton;
    
     main() : SELF_TYPE {
         {
+            1
+            -1
+            3219389
+            AAAAA
+            AA__AAA
+            A3123
+            3123aa
+            023112
+            -- (* aaaaa 
+            *) 
+            ( * aaa * )
+            (* aaa *)
+            aaa *)  -- should accuse unmatched *)
+
+            "string"
+            "string string"
+            "if else if"
+            "!@!#@#$42"
+            true
+            trUE
+            True
+            false
+            FALSE
+            falsE
+            aaa-bbb
+            if else fi
+            "a \" -- should have a string without termination error
+            -- shouldn't match
+            !
+            [
+            ]
+            #
+            _
+            $
+            %
+            ^
+            -- should start matching again
+            <-
+            =>
+            \0
+            \t
+            "\n"
+            \n
+            \f
+            \\n
+            (* 
+                ISSO É UM COMENTARIO
+                *)
+
+
             cells <- (new CellularAutomaton).init("         X         ");
             cells.print();
             (let countdown : Int <- 20 in
@@ -90,8 +181,9 @@ class Main {
                         countdown <- countdown - 1;
                     
                 pool
-            );  (* end let countdown *)
+            );  (* end let countdown -- EOF in comment
             self;
+
         }
     };
 };
